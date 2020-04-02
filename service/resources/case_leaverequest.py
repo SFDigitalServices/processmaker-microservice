@@ -19,6 +19,7 @@ class CaseLeaveRequest():
         resp_msg = {'message': 'Welcome'}
         sentry_msg = 'CaseLeaveRequest.post'
         ext_id = ''
+
         try:
             if req.params and 'workspace' in req.params:
                 workspace = req.params['workspace']
@@ -38,16 +39,23 @@ class CaseLeaveRequest():
                     'api/1.0/'+workspace+'/plugin-Ppssfgov/cases/leaveRequest',
                     json=case_json)
 
-                if pm_resp and pm_resp['CASE_NUMBER'] and pm_resp['APP_UID']:
+                with sentry_sdk.configure_scope() as scope:
+                    scope.set_extra('processmaker_response', pm_resp)
+
+                # default state
+                resp.status = falcon.HTTP_400
+                resp_msg = jsend.error(json.dumps(pm_resp))
+
+                if pm_resp and "CASE_NUMBER" in pm_resp and "APP_UID" in pm_resp:
                     sentry_msg = 'Workers and Families First Program '
                     sentry_msg += 'Case '+pm_resp['CASE_NUMBER']+' created.'
                     ext_id = pm_resp['APP_UID']
 
-                resp_msg = jsend.success(pm_resp)
-                resp_msg['id'] = ext_id
+                    resp.status = falcon.HTTP_200
+                    resp_msg = jsend.success(pm_resp)
+                    resp_msg['id'] = ext_id
 
             resp.body = json.dumps(resp_msg)
-            resp.status = falcon.HTTP_200
 
             with sentry_sdk.configure_scope() as scope:
                 scope.set_extra('response', resp_msg)
